@@ -122,6 +122,12 @@ impl<'a, 'd> Target {
         {
             return Err(Error::InvalidRequest);
         }
+
+        // Programing works halfword-wise and will crash if the address is not aligned
+        if address % 2 != 0 {
+            return Err(Error::InvalidRequest);
+        }
+
         Ok(Program::at(&mut self.handle, data, address))
     }
 
