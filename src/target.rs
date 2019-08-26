@@ -23,6 +23,9 @@ pub struct TargetInfo {
 pub struct Target {
     /// Handle for the low-level communication
     handle: TargetHandle<rusb::Context>,
+
+    /// More information about the bootloader
+    pub bootloader_info: BootloaderInfo,
 }
 
 impl<'a> TargetInfo {
@@ -38,8 +41,9 @@ impl<'a> TargetInfo {
                 // a reenumeration between its call and a call of open()).
                 match get_serial(&device) {
                     Ok(ref serial) if serial == &self.serial => {
-                        let handle = TargetHandle::from_usb_device(device)?;
-                        return Ok(Target { handle });
+                        let mut handle = TargetHandle::from_usb_device(device)?;
+                        let bootloader_info = handle.bootloader_info()?;
+                        return Ok(Target { handle, bootloader_info });
                     }
                     Ok(_) => return Err(Error::TargetNotFound),
                     Err(e) => return Err(e),
@@ -51,11 +55,6 @@ impl<'a> TargetInfo {
 }
 
 impl<'a, 'd> Target {
-    /// Queries bootloader information from the target.
-    pub fn bootloader_info(&mut self) -> Result<BootloaderInfo> {
-        self.handle.bootloader_info()
-    }
-
     /// Queries a CRC32 from the target for a given memory area.
     pub fn read_crc(&mut self, address: u32, length: usize) -> Result<u32> {
         self.handle.read_crc(address, length as u32)
