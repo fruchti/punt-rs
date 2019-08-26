@@ -27,12 +27,13 @@ impl<'a> TargetInfo {
                 // send commands to some entirely different device (e.g. if bus number and address
                 // have been determined by something else than Context::find_targets() or there was
                 // a reenumeration between its call and a call of open()).
-                if get_serial(&device).is_ok() {
-                    let handle = TargetHandle::from_usb_device(device)?;
-
-                    return Ok(Target { handle });
-                } else {
-                    return Err(Error::UnsupportedTarget);
+                match get_serial(&device) {
+                    Ok(ref serial) if serial == &self.serial => {
+                        let handle = TargetHandle::from_usb_device(device)?;
+                        return Ok(Target { handle });
+                    }
+                    Ok(_) => return Err(Error::TargetNotFound),
+                    Err(e) => return Err(e),
                 }
             }
         }
