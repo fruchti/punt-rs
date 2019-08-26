@@ -22,7 +22,7 @@ use super::target_handle::TargetHandle;
 /// let mut target = context.pick_target(None)?.open(&mut context)?;
 ///
 /// // Create an erase Operation
-/// let mut erase = target.erase_area(0x0800_0c00, 1024);
+/// let mut erase = target.erase_area(0x0800_0c00, 1024)?;
 ///
 /// // Execute the erase and check its result
 /// erase.execute()?;
@@ -41,7 +41,7 @@ use super::target_handle::TargetHandle;
 /// let mut target = context.pick_target(None)?.open(&mut context)?;
 ///
 /// // Create an erase Operation
-/// let mut erase = target.erase_area(0x0800_0c00, 1024);
+/// let mut erase = target.erase_area(0x0800_0c00, 1024)?;
 ///
 /// let total = erase.total();
 /// for status in erase {
@@ -134,8 +134,7 @@ impl<'a> Erase<'a> {
             let first_page = Page::from_address(start);
             let last_page = Page::from_address(start + length as u32 - 1);
             (first_page.into()..=last_page.into())
-                .into_iter()
-                .map(|num| Page::from_index(num))
+                .map(Page::from_index)
                 .collect()
         };
 

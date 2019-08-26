@@ -34,7 +34,7 @@ impl Page {
     /// assert_eq!(page.begin(), FLASH_BASE);
     /// ```
     pub fn begin(&self) -> u32 {
-        self.0 as u32 * PAGE_SIZE + FLASH_BASE
+        u32::from(self.0) * PAGE_SIZE + FLASH_BASE
     }
 
     /// Returns the address of the last byte of a page.
@@ -53,7 +53,7 @@ impl Page {
     /// assert_eq!(next_page_index, 1);
     /// ```
     pub fn end(&self) -> u32 {
-        (self.0 as u32 + 1) * PAGE_SIZE + FLASH_BASE - 1
+        (u32::from(self.0) + 1) * PAGE_SIZE + FLASH_BASE - 1
     }
 }
 

@@ -43,7 +43,10 @@ impl<'a> TargetInfo {
                     Ok(ref serial) if serial == &self.serial => {
                         let mut handle = TargetHandle::from_usb_device(device)?;
                         let bootloader_info = handle.bootloader_info()?;
-                        return Ok(Target { handle, bootloader_info });
+                        return Ok(Target {
+                            handle,
+                            bootloader_info,
+                        });
                     }
                     Ok(_) => return Err(Error::TargetNotFound),
                     Err(e) => return Err(e),
@@ -73,30 +76,67 @@ impl<'a, 'd> Target {
 
     /// Erases a single flash page.
     pub fn erase_page(&mut self, page: Page) -> Result<()> {
+        if !self.bootloader_info.application_pages().contains(&page) {
+            return Err(Error::InvalidRequest);
+        }
+
         self.handle.erase_page(page)
     }
 
     /// Erases a number of pages.
-    pub fn erase_pages(&mut self, pages: &[Page]) -> Erase<'_> {
-        Erase::pages(&mut self.handle, pages)
+    pub fn erase_pages(&mut self, pages: &[Page]) -> Result<Erase<'_>> {
+        if pages
+            .iter()
+            .any(|page| !self.bootloader_info.application_pages().contains(&page))
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Erase::pages(&mut self.handle, pages))
     }
 
     /// Erases the minimum number of pages to ensure the supplied area is completely erased. This
     /// will, in general, erase a larger area due to the page-wise erase of the microcontroller's
     /// flash memory.
-    pub fn erase_area(&mut self, start: u32, length: usize) -> Erase<'_> {
-        Erase::area(&mut self.handle, start, length)
+    pub fn erase_area(&mut self, start: u32, length: usize) -> Result<Erase<'_>> {
+        // Ensure that the requested area is fully within application flash
+        if (self.bootloader_info.application_base > start)
+            || (self.bootloader_info.application_base as usize
+                + self.bootloader_info.application_size
+                < start as usize + length)
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Erase::area(&mut self.handle, start, length))
     }
 
     /// Programs a buffer's contents into the microcontroller's flash at the given start address.
     /// The flash area has to be erased for this operation to succeed.
-    pub fn program_at(&mut self, data: &'d [u8], address: u32) -> Program<'d, '_> {
-        Program::at(&mut self.handle, data, address)
+    pub fn program_at(&mut self, data: &'d [u8], address: u32) -> Result<Program<'d, '_>> {
+        // Ensure that the area to be written to is fully within application flash
+        if (self.bootloader_info.application_base > address)
+            || (self.bootloader_info.application_base as usize
+                + self.bootloader_info.application_size
+                < address as usize + data.len())
+        {
+            return Err(Error::InvalidRequest);
+        }
+        Ok(Program::at(&mut self.handle, data, address))
     }
 
     /// Reads from the target's memory into a buffer.
-    pub fn read_at(&mut self, buffer: &'d mut [u8], address: u32) -> Read<'d, '_> {
-        Read::at(&mut self.handle, buffer, address)
+    pub fn read_at(&mut self, buffer: &'d mut [u8], address: u32) -> Result<Read<'d, '_>> {
+        // Ensure that the requested area is fully within application flash
+        if (self.bootloader_info.application_base > address)
+            || (self.bootloader_info.application_base as usize
+                + self.bootloader_info.application_size
+                < address as usize + buffer.len())
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Read::at(&mut self.handle, buffer, address))
     }
 
     /// Signals the target to exit its bootloader and start the application.

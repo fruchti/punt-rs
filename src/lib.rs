@@ -18,14 +18,13 @@
 //! let mut target = context.pick_target(None)?.open(&mut context)?;
 //!
 //! // Fetch information about the target's bootloader
-//! let bootloader_info = target.bootloader_info()?;
-//! let start_address = bootloader_info.application_base;
+//! let start_address = target.bootloader_info.application_base;
 //!
 //! // Erase the necessary flash area
-//! target.erase_area(start_address, buff.len()).execute()?;
+//! target.erase_area(start_address, buff.len())?.execute()?;
 //!
 //! // Program the buffer into flash
-//! target.program_at(buff.as_slice(), start_address).execute()?;
+//! target.program_at(buff.as_slice(), start_address)?.execute()?;
 //!
 //! // Verify flash contents
 //! target.verify(buff.as_slice(), start_address)?;

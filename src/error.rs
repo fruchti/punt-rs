@@ -5,6 +5,10 @@ use std::result::Result as StdResult;
 /// Errors which can occur during target setup and communication.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
+    /// An operation could not be performed because it was prohibited by safety checks (e.g.
+    /// programming at an odd address)
+    InvalidRequest,
+
     /// It was attempted to open a connection to a target which does not exist.
     TargetNotFound,
 
@@ -30,6 +34,7 @@ pub enum Error {
 impl StdError for Error {
     fn description(&self) -> &str {
         match self {
+            Error::InvalidRequest => "Invalid request.",
             Error::TargetNotFound => "Target not found",
             Error::UnsupportedTarget => "Target is unsupported",
             Error::TooManyMatches => "Too many matches",

@@ -1,4 +1,7 @@
 use std::fmt;
+use std::ops::RangeInclusive;
+
+use super::flash::Page;
 
 /// Suppository information read back from the bootloader.
 #[derive(Debug)]
@@ -14,6 +17,14 @@ pub struct BootloaderInfo {
 
     /// Size of the flash available for the application (in bytes).
     pub application_size: usize,
+}
+
+impl BootloaderInfo {
+    /// Returns a range containing all application pages
+    pub fn application_pages(&self) -> RangeInclusive<Page> {
+        Page::from_address(self.application_base)
+            ..=Page::from_address(self.application_base + self.application_size as u32 - 1)
+    }
 }
 
 impl fmt::Display for BootloaderInfo {
