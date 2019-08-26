@@ -1,14 +1,16 @@
+use rusb::UsbContext;
+
 use super::error::{Error, Result};
 use super::target::TargetInfo;
 use super::target_handle::get_serial;
 
 pub struct Context {
-    pub usb_context: libusb::Context,
+    pub usb_context: rusb::Context,
 }
 
 impl Context {
     pub fn new() -> Result<Self> {
-        let usb_context = libusb::Context::new()?;
+        let usb_context = rusb::Context::new()?;
         // usb_context.set_log_level(libusb::LogLevel::Debug);
         Ok(Context { usb_context })
     }

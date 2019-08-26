@@ -1,6 +1,6 @@
 extern crate byteorder;
 extern crate crc_any;
-extern crate libusb;
+extern crate rusb;
 
 mod bootloader_info;
 mod context;

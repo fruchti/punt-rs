@@ -3,11 +3,11 @@ use super::flash::Page;
 use super::BootloaderInfo;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crc_any::CRC;
-use libusb::{Device, DeviceHandle};
+use rusb::{Device, DeviceHandle, UsbContext};
 
 use super::TIMEOUT;
 
-pub fn get_serial(device: &libusb::Device) -> Result<String> {
+pub fn get_serial<T: UsbContext>(device: &Device<T>) -> Result<String> {
     // Constants used to identify the device. The shared VID:PID pair used here
     // mandates a check for the manufacturer and product strings
     const PRODUCT_STRING: &str = "Punt\u{0}";
@@ -39,14 +39,14 @@ pub fn get_serial(device: &libusb::Device) -> Result<String> {
     Err(Error::UnsupportedTarget)
 }
 
-pub struct TargetHandle<'a> {
-    usb_device_handle: DeviceHandle<'a>,
+pub struct TargetHandle<T: UsbContext> {
+    usb_device_handle: DeviceHandle<T>,
     in_buffer_length: u16,
     out_buffer_length: u16,
 }
 
-impl<'a> TargetHandle<'a> {
-    pub fn from_usb_device(device: Device<'a>) -> Result<Self> {
+impl<T: UsbContext> TargetHandle<T> {
+    pub fn from_usb_device(device: Device<T>) -> Result<Self> {
         // Fetch endpoint sizes
         let config_descriptor = device.active_config_descriptor()?;
         let interface_descriptor = config_descriptor
@@ -104,17 +104,6 @@ impl<'a> TargetHandle<'a> {
         Ok(crc)
     }
 
-    pub fn crc32(buff: &[u8]) -> u32 {
-        let mut crc = CRC::crc32mpeg2();
-        for bytes in buff.chunks(4) {
-            let mut word = vec![0u8; 4];
-            word[..bytes.len()].copy_from_slice(&bytes);
-            word.reverse();
-            crc.digest(&word);
-        }
-        crc.get_crc() as u32
-    }
-
     pub fn max_read_chunk_size(&self) -> usize {
         self.in_buffer_length as usize
     }
@@ -166,10 +155,10 @@ impl<'a> TargetHandle<'a> {
     ) -> Result<()> {
         self.usb_device_handle.claim_interface(0)?;
         self.usb_device_handle.write_control(
-            libusb::request_type(
-                libusb::Direction::Out,
-                libusb::RequestType::Vendor,
-                libusb::Recipient::Device,
+            rusb::request_type(
+                rusb::Direction::Out,
+                rusb::RequestType::Vendor,
+                rusb::Recipient::Device,
             ),
             cmd as u8,
             0,
@@ -192,6 +181,17 @@ impl<'a> TargetHandle<'a> {
         self.usb_device_handle.release_interface(0)?;
         Ok(())
     }
+}
+
+pub fn crc32(buff: &[u8]) -> u32 {
+    let mut crc = CRC::crc32mpeg2();
+    for bytes in buff.chunks(4) {
+        let mut word = vec![0u8; 4];
+        word[..bytes.len()].copy_from_slice(&bytes);
+        word.reverse();
+        crc.digest(&word);
+    }
+    crc.get_crc() as u32
 }
 
 /// Commands understood by the Punt bootloader. See `commands.h` in the C implementation of the

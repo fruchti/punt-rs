@@ -9,7 +9,7 @@ pub enum Error {
     TooManyMatches,
     EraseError(u8),
     VerificationError,
-    IoError(libusb::Error),
+    IoError(rusb::Error),
     ParseError(std::io::Error),
 }
 
@@ -33,8 +33,8 @@ impl Display for Error {
     }
 }
 
-impl From<libusb::Error> for Error {
-    fn from(error: libusb::Error) -> Self {
+impl From<rusb::Error> for Error {
+    fn from(error: rusb::Error) -> Self {
         Error::IoError(error)
     }
 }

@@ -17,20 +17,20 @@ pub trait Operation: Iterator<Item = Result<usize>> {
     }
 }
 
-pub struct Erase<'h, 'a> {
-    handle: &'a mut TargetHandle<'h>,
+pub struct Erase<'a> {
+    handle: &'a mut TargetHandle<rusb::Context>,
     pages: Vec<Page>,
     count: usize,
     done: bool,
 }
 
-impl Operation for Erase<'_, '_> {
+impl Operation for Erase<'_> {
     fn total(&self) -> usize {
         self.count
     }
 }
 
-impl Iterator for Erase<'_, '_> {
+impl Iterator for Erase<'_> {
     type Item = Result<(usize)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -55,8 +55,8 @@ impl Iterator for Erase<'_, '_> {
     }
 }
 
-impl<'h, 'a> Erase<'h, 'a> {
-    pub fn pages(handle: &'a mut TargetHandle<'h>, pages: &[Page]) -> Self {
+impl<'a> Erase<'a> {
+    pub fn pages(handle: &'a mut TargetHandle<rusb::Context>, pages: &[Page]) -> Self {
         Self {
             handle,
             done: pages.is_empty(),
@@ -65,7 +65,7 @@ impl<'h, 'a> Erase<'h, 'a> {
         }
     }
 
-    pub fn area(handle: &'a mut TargetHandle<'h>, start: u32, length: usize) -> Self {
+    pub fn area(handle: &'a mut TargetHandle<rusb::Context>, start: u32, length: usize) -> Self {
         let pages = if length == 0 {
             // No pages should be erased if the area is zero-length
             Vec::new()
@@ -87,8 +87,8 @@ impl<'h, 'a> Erase<'h, 'a> {
     }
 }
 
-pub struct Program<'h, 'd, 'a> {
-    handle: &'a mut TargetHandle<'h>,
+pub struct Program<'d, 'a> {
+    handle: &'a mut TargetHandle<rusb::Context>,
     address: u32,
     chunks: Enumerate<Chunks<'d, u8>>,
     length: usize,
@@ -96,13 +96,13 @@ pub struct Program<'h, 'd, 'a> {
     done: bool,
 }
 
-impl Operation for Program<'_, '_, '_> {
+impl Operation for Program<'_, '_> {
     fn total(&self) -> usize {
         self.length
     }
 }
 
-impl Iterator for Program<'_, '_, '_> {
+impl Iterator for Program<'_, '_> {
     type Item = Result<(usize)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -130,8 +130,8 @@ impl Iterator for Program<'_, '_, '_> {
     }
 }
 
-impl<'h, 'd, 'a> Program<'h, 'd, 'a> {
-    pub fn at(handle: &'a mut TargetHandle<'h>, data: &'d [u8], address: u32) -> Self {
+impl<'d, 'a> Program<'d, 'a> {
+    pub fn at(handle: &'a mut TargetHandle<rusb::Context>, data: &'d [u8], address: u32) -> Self {
         let chunk_size = handle.max_program_chunk_size();
         Self {
             handle,
@@ -144,8 +144,8 @@ impl<'h, 'd, 'a> Program<'h, 'd, 'a> {
     }
 }
 
-pub struct Read<'h, 'd, 'a> {
-    handle: &'a mut TargetHandle<'h>,
+pub struct Read<'d, 'a> {
+    handle: &'a mut TargetHandle<rusb::Context>,
     address: u32,
     chunks: Enumerate<ChunksMut<'d, u8>>,
     length: usize,
@@ -153,13 +153,13 @@ pub struct Read<'h, 'd, 'a> {
     done: bool,
 }
 
-impl Operation for Read<'_, '_, '_> {
+impl Operation for Read<'_, '_> {
     fn total(&self) -> usize {
         self.length
     }
 }
 
-impl Iterator for Read<'_, '_, '_> {
+impl Iterator for Read<'_, '_> {
     type Item = Result<(usize)>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -187,8 +187,12 @@ impl Iterator for Read<'_, '_, '_> {
     }
 }
 
-impl<'h, 'd, 'a> Read<'h, 'd, 'a> {
-    pub fn at(handle: &'a mut TargetHandle<'h>, buffer: &'d mut [u8], address: u32) -> Self {
+impl<'d, 'a> Read<'d, 'a> {
+    pub fn at(
+        handle: &'a mut TargetHandle<rusb::Context>,
+        buffer: &'d mut [u8],
+        address: u32,
+    ) -> Self {
         let chunk_size = handle.max_read_chunk_size();
         Self {
             handle,
