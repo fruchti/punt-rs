@@ -1,3 +1,40 @@
+//! This crate provides a way to interact with a microcontroller with the punt bootloader connected
+//! via USB and exposes all bootloader functions.
+//!
+//! # Example: Basic flashing
+//! ```rust, no_run
+//! use punt::{Context, Operation};
+//! use std::fs::File;
+//! use std::io::{Read, Write};
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // Open binary file and read contents
+//! let mut file = File::open("test.bin")?;
+//! let mut buff = Vec::new();
+//! file.read_to_end(&mut buff)?;
+//!
+//! // Find a bootloader target
+//! let mut context = Context::new()?;
+//! let mut target = context.pick_target(None)?.open(&mut context)?;
+//!
+//! // Fetch information about the target's bootloader
+//! let bootloader_info = target.bootloader_info()?;
+//! let start_address = bootloader_info.application_base;
+//!
+//! // Erase the necessary flash area
+//! target.erase_area(start_address, buff.len()).execute()?;
+//!
+//! // Program the buffer into flash
+//! target.program_at(buff.as_slice(), start_address).execute()?;
+//!
+//! // Verify flash contents
+//! target.verify(buff.as_slice(), start_address)?;
+//!
+//! println!("Done!");
+//! # Ok(())
+//! # }
+//! ```
+
 extern crate crc_any;
 extern crate rusb;
 
