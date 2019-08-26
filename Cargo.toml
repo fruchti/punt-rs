@@ -1,0 +1,12 @@
+[package]
+name = "punt"
+version = "0.1.0"
+authors = ["fruchti <fruchti@gvfr.de>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libusb = "0.3"
+byteorder = "1"
+crc-any = "2.2.2"
