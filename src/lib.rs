@@ -16,4 +16,5 @@ pub use flash::{Page, FLASH_BASE, PAGE_SIZE};
 pub use operation::Operation;
 pub use target::{Target, TargetInfo};
 
+/// Timeout for all usb transactions.
 const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(500);

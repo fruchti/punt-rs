@@ -5,9 +5,61 @@ use super::error::Result;
 use super::flash::Page;
 use super::target_handle::TargetHandle;
 
+/// General-purpose trait for operations which take multiple command transmissions via USB, e.g.
+/// reading or writing a larger section of memory in smaller blocks.
+///
+/// # Examples
+///
+/// An `Operation` is an [`Iterator`] and thus evaluated lazily. This means it has, on the one hand,
+/// to be executed explicitly for it to take effect:
+///
+/// ```rust, no_run
+/// use punt::{Context, Operation};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // Find a bootloader target
+/// let mut context = Context::new()?;
+/// let mut target = context.pick_target(None)?.open(&mut context)?;
+///
+/// // Create an erase Operation
+/// let mut erase = target.erase_area(0x0800_0c00, 1024);
+///
+/// // Execute the erase and check its result
+/// erase.execute()?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// … but on the other hand, this can be used to have progress feedback from the operation
+///
+/// ```rust, no_run
+/// use punt::{Context, Operation};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// // Find a bootloader target
+/// let mut context = Context::new()?;
+/// let mut target = context.pick_target(None)?.open(&mut context)?;
+///
+/// // Create an erase Operation
+/// let mut erase = target.erase_area(0x0800_0c00, 1024);
+///
+/// let total = erase.total();
+/// for status in erase {
+///     println!("Successfully erased {} of {} pages.", status?, total);
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// [`Iterator`]: https://doc.rust-lang.org/std/iter/trait.Iterator.html
 pub trait Operation: Iterator<Item = Result<usize>> {
+    /// Returns the total value in terms of which the progress is expressed.
+    ///
+    /// For example, for an erase operation it would be the total number of pages, while for a flash
+    /// read it would be the total number of bytes to be read.
     fn total(&self) -> usize;
 
+    /// Consumes the iterator to execute the operation. Returns on the first error to occur.
     fn execute(&mut self) -> Result<()> {
         if let Some(Err(error)) = self.last() {
             Err(error)
@@ -17,6 +69,7 @@ pub trait Operation: Iterator<Item = Result<usize>> {
     }
 }
 
+/// Page-wise flash erase operation
 pub struct Erase<'a> {
     handle: &'a mut TargetHandle<rusb::Context>,
     pages: Vec<Page>,
@@ -56,7 +109,8 @@ impl Iterator for Erase<'_> {
 }
 
 impl<'a> Erase<'a> {
-    pub fn pages(handle: &'a mut TargetHandle<rusb::Context>, pages: &[Page]) -> Self {
+    /// Erase a set of given pages (not necessarily a continuous range).
+    pub(crate) fn pages(handle: &'a mut TargetHandle<rusb::Context>, pages: &[Page]) -> Self {
         Self {
             handle,
             done: pages.is_empty(),
@@ -65,7 +119,14 @@ impl<'a> Erase<'a> {
         }
     }
 
-    pub fn area(handle: &'a mut TargetHandle<rusb::Context>, start: u32, length: usize) -> Self {
+    /// Erase all necessary pages so that the flash area specified by a start address and length is
+    /// completely erased. Due to the page-wise erase, this might erase memory outside the given
+    /// area.
+    pub(crate) fn area(
+        handle: &'a mut TargetHandle<rusb::Context>,
+        start: u32,
+        length: usize,
+    ) -> Self {
         let pages = if length == 0 {
             // No pages should be erased if the area is zero-length
             Vec::new()
@@ -87,6 +148,7 @@ impl<'a> Erase<'a> {
     }
 }
 
+/// Flash program operation.
 pub struct Program<'d, 'a> {
     handle: &'a mut TargetHandle<rusb::Context>,
     address: u32,
@@ -131,7 +193,13 @@ impl Iterator for Program<'_, '_> {
 }
 
 impl<'d, 'a> Program<'d, 'a> {
-    pub fn at(handle: &'a mut TargetHandle<rusb::Context>, data: &'d [u8], address: u32) -> Self {
+    /// Write to flash, starting at a given memory location. The memory has to be manually erased
+    /// before starting a programming operation.
+    pub(crate) fn at(
+        handle: &'a mut TargetHandle<rusb::Context>,
+        data: &'d [u8],
+        address: u32,
+    ) -> Self {
         let chunk_size = handle.max_program_chunk_size();
         Self {
             handle,
@@ -144,6 +212,7 @@ impl<'d, 'a> Program<'d, 'a> {
     }
 }
 
+// Memory read operation.
 pub struct Read<'d, 'a> {
     handle: &'a mut TargetHandle<rusb::Context>,
     address: u32,
@@ -188,7 +257,8 @@ impl Iterator for Read<'_, '_> {
 }
 
 impl<'d, 'a> Read<'d, 'a> {
-    pub fn at(
+    /// Read from the microcontroller's memory to a buffer, starting at the supplied address.
+    pub(crate) fn at(
         handle: &'a mut TargetHandle<rusb::Context>,
         buffer: &'d mut [u8],
         address: u32,

@@ -2,13 +2,28 @@ use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::result::Result as StdResult;
 
-#[derive(Debug)]
+/// Errors which can occur during target setup and communication.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
+    /// It was attempted to open a connection to a target which does not exist.
     TargetNotFound,
+
+    /// The given USB address pertains to an unsupported USB device (probably not even a punt
+    /// bootloader).
     UnsupportedTarget,
+
+    /// The request was not specific enough and returned in multiple matches where only a single one
+    /// is supported.
     TooManyMatches,
+
+    /// An error was reported during the erase from the target. The contained `u8` is the raw result
+    /// code.
     EraseError(u8),
+
+    /// Verifying memory contents via CRC failed.
     VerificationError,
+
+    /// An error occurred during the raw USB communication.
     IoError(rusb::Error),
 }
 
@@ -37,4 +52,5 @@ impl From<rusb::Error> for Error {
     }
 }
 
+/// Shorthand for a Result with the crate's own Error type.
 pub type Result<T> = StdResult<T, Error>;
