@@ -10,7 +10,6 @@ pub enum Error {
     EraseError(u8),
     VerificationError,
     IoError(rusb::Error),
-    ParseError(std::io::Error),
 }
 
 impl StdError for Error {
@@ -22,7 +21,6 @@ impl StdError for Error {
             Error::EraseError(_) => "Flash erase error",
             Error::VerificationError => "Verification error",
             Error::IoError(err) => err.description(),
-            Error::ParseError(err) => err.description(),
         }
     }
 }
@@ -36,12 +34,6 @@ impl Display for Error {
 impl From<rusb::Error> for Error {
     fn from(error: rusb::Error) -> Self {
         Error::IoError(error)
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Error::ParseError(error)
     }
 }
 

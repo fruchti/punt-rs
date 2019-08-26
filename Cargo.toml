@@ -8,5 +8,4 @@ edition = "2018"
 
 [dependencies]
 rusb = "0.5.1"
-byteorder = "1"
 crc-any = "2.2.2"

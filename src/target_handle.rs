@@ -1,11 +1,17 @@
 use super::error::{Error, Result};
 use super::flash::Page;
 use super::BootloaderInfo;
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::convert::TryInto;
 use crc_any::CRC;
 use rusb::{Device, DeviceHandle, UsbContext};
 
 use super::TIMEOUT;
+
+fn read_ne_u32(input: &mut &[u8]) -> u32 {
+    let (int_bytes, rest) = input.split_at(std::mem::size_of::<u32>());
+    *input = rest;
+    u32::from_ne_bytes(int_bytes.try_into().unwrap())
+}
 
 pub fn get_serial<T: UsbContext>(device: &Device<T>) -> Result<String> {
     // Constants used to identify the device. The shared VID:PID pair used here
@@ -74,11 +80,13 @@ impl<T: UsbContext> TargetHandle<T> {
         let mut info_packet = [0u8; 16];
         self.send_command(Command::BootloaderInfo, &[0; 0], &mut info_packet)?;
 
-        let build_number = (&info_packet[4..8]).read_u32::<LittleEndian>()?;
-        let build_date = (&info_packet[0..4]).read_u32::<LittleEndian>()?;
-        let application_base = (&info_packet[8..12]).read_u32::<LittleEndian>()?;
-        let application_size = (&info_packet[12..16]).read_u32::<LittleEndian>()? as usize;
+        let mut info_packet = &info_packet[..];
+        let build_date = read_ne_u32(&mut info_packet);
+        let build_number = read_ne_u32(&mut info_packet);
+        let application_base = read_ne_u32(&mut info_packet);
+        let application_size = read_ne_u32(&mut info_packet) as usize;
 
+        // Convert raw date integer to legible representation
         let mut build_date = build_date.to_string();
         build_date.insert(6, '-');
         build_date.insert(4, '-');
@@ -92,14 +100,14 @@ impl<T: UsbContext> TargetHandle<T> {
     }
 
     pub fn read_crc(&mut self, start: u32, length: u32) -> Result<u32> {
-        let mut request_packet = [0u8; 8];
-        (&mut request_packet[0..4]).write_u32::<LittleEndian>(start)?;
-        (&mut request_packet[4..8]).write_u32::<LittleEndian>(length)?;
+        let mut request_packet = vec![0u8; 8];
+        request_packet[0..4].copy_from_slice(&start.to_le_bytes());
+        request_packet[4..8].copy_from_slice(&length.to_le_bytes());
         let mut crc_packet = [0u8; 4];
 
         self.send_command(Command::ReadCrc, &request_packet, &mut crc_packet)?;
 
-        let crc = (&crc_packet[0..4]).read_u32::<LittleEndian>()?;
+        let crc = u32::from_le_bytes(crc_packet);
 
         Ok(crc)
     }
@@ -109,9 +117,9 @@ impl<T: UsbContext> TargetHandle<T> {
     }
 
     pub fn read_chunk(&mut self, start: u32, buffer: &mut [u8]) -> Result<()> {
-        let mut request_packet = [0u8; 8];
-        (&mut request_packet[0..4]).write_u32::<LittleEndian>(start)?;
-        (&mut request_packet[4..8]).write_u32::<LittleEndian>(buffer.len() as u32)?;
+        let mut request_packet = vec![0u8; 8];
+        request_packet[0..4].copy_from_slice(&start.to_le_bytes());
+        request_packet[4..8].copy_from_slice(&(buffer.len() as u32).to_le_bytes());
 
         self.send_command(Command::ReadMemory, &request_packet, buffer)
     }
@@ -135,7 +143,7 @@ impl<T: UsbContext> TargetHandle<T> {
 
     pub fn program_chunk(&mut self, start: u32, data: &[u8]) -> Result<()> {
         let mut address_packet = vec![0u8; 4];
-        (&mut address_packet[0..4]).write_u32::<LittleEndian>(start)?;
+        address_packet[0..4].copy_from_slice(&start.to_le_bytes());
 
         let mut packet = Vec::with_capacity(data.len() + 4);
         packet.extend(address_packet);

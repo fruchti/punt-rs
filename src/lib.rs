@@ -1,4 +1,3 @@
-extern crate byteorder;
 extern crate crc_any;
 extern crate rusb;
 
