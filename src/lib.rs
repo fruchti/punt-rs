@@ -33,6 +33,11 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! In addition to this very basic API, it also provides functionality for progress feedback during
+//! operations like reading, erasing and flashing. See the [`Operation`] trait for details.
+//!
+//! [`Operation`]: trait.Operation.html
 
 extern crate crc_any;
 extern crate rusb;
