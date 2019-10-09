@@ -20,9 +20,8 @@ pub enum Error {
     /// is supported.
     TooManyMatches,
 
-    /// An error was reported during the erase from the target. The contained `u8` is the raw result
-    /// code.
-    EraseError(u8),
+    /// An error was reported during the erase from the target.
+    EraseError(EraseError),
 
     /// Verifying memory contents via CRC failed.
     VerificationError,
@@ -54,6 +53,29 @@ impl Display for Error {
 impl From<rusb::Error> for Error {
     fn from(error: rusb::Error) -> Self {
         Error::IoError(error)
+    }
+}
+
+/// Error during flash erasing.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum EraseError {
+    /// Erasing an area which should or could not be erased was attempted.
+    Prohibited = 1,
+
+    /// No problems during erasing, but the area turned out to be actually not erased.
+    VerifyFailed = 2,
+
+    /// Used for all error codes the bootloader firmware does not use. Thus, it should never occur.
+    Unknown,
+}
+
+impl From<u8> for EraseError {
+    fn from(code: u8) -> EraseError {
+        match code {
+            c if c == EraseError::Prohibited as u8 => EraseError::Prohibited,
+            c if c == EraseError::VerifyFailed as u8 => EraseError::VerifyFailed,
+            _ => EraseError::Unknown,
+        }
     }
 }
 

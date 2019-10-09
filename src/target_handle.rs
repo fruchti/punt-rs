@@ -153,7 +153,7 @@ impl<T: UsbContext> TargetHandle<T> {
         // TODO: Add more fine-grained result code matching
         match status_packet[0] {
             0 => Ok(()),
-            code => Err(Error::EraseError(code)),
+            code => Err(Error::EraseError(code.into())),
         }
     }
 
