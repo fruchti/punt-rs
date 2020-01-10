@@ -84,7 +84,7 @@ impl Operation for Erase<'_> {
 }
 
 impl Iterator for Erase<'_> {
-    type Item = Result<(usize)>;
+    type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -164,7 +164,7 @@ impl Operation for Program<'_, '_> {
 }
 
 impl Iterator for Program<'_, '_> {
-    type Item = Result<(usize)>;
+    type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
@@ -228,7 +228,7 @@ impl Operation for Read<'_, '_> {
 }
 
 impl Iterator for Read<'_, '_> {
-    type Item = Result<(usize)>;
+    type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.done {
