@@ -80,7 +80,7 @@ impl<T: UsbContext> TargetHandle<T> {
         let out_buffer_length = endpoint_descriptors.next().unwrap().max_packet_size();
 
         let mut device_handle = device.open()?;
-        device_handle.set_active_configuration(1)?;
+        device_handle.reset()?;
 
         Ok(Self {
             usb_device_handle: device_handle,
