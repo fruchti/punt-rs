@@ -1,24 +1,15 @@
-use rusb::UsbContext;
-
 use super::error::{Error, Result};
 use super::target::TargetInfo;
 use super::target_handle::get_serial;
+use rusb::UsbContext as _;
 
-/// A punt context.
-pub struct Context {
-    pub(crate) usb_context: rusb::Context,
-}
+/// Base trait for a USB context. This is a small wrapper around rusb::UsbContext with a few
+/// convenience functions.
+pub trait UsbContext {
+    type RawContext: rusb::UsbContext;
 
-impl Context {
-    /// Opens a new punt context. Fails with [`Error::IoError`] when failing to create a libusb
-    /// context.
-    ///
-    /// [`Error::IoError`]: enum.Error.html#variant.IoError
-    pub fn new() -> Result<Self> {
-        let usb_context = rusb::Context::new()?;
-        // usb_context.set_log_level(libusb::LogLevel::Debug);
-        Ok(Context { usb_context })
-    }
+    /// Returns a rusb::UsbContext for raw USB access.
+    fn raw_context(&self) -> &Self::RawContext;
 
     /// Returns information about all connected targets in bootloader mode. USB devices not in
     /// bootloader mode cannot be detected, since the ir protocol for entering bootloader mode is
@@ -27,10 +18,10 @@ impl Context {
     /// It returns [`Error::IoError`] on USB errors during device enumeration.
     ///
     /// [`Error::IoError`]: enum.Error.html#variant.IoError
-    pub fn find_targets(&mut self) -> Result<Vec<TargetInfo>> {
+    fn find_targets(&self) -> Result<Vec<TargetInfo>> {
         let mut targets = Vec::new();
 
-        for device in self.usb_context.devices()?.iter() {
+        for device in self.raw_context().devices()?.iter() {
             if let Ok(serial) = get_serial(&device) {
                 targets.push(TargetInfo {
                     serial,
@@ -61,7 +52,7 @@ impl Context {
     /// [`Error::IoError`]: enum.Error.html#variant.IoError
     /// [`Error::TargetNotFound`]: enum.Error.html#variant.TargetNotFound
     /// [`Error::TooManyMatches`]: enum.Error.html#variant.TooManyMatches
-    pub fn pick_target(&mut self, serial: Option<&str>) -> Result<TargetInfo> {
+    fn pick_target(&self, serial: Option<&str>) -> Result<TargetInfo> {
         let targets = self.find_targets()?;
         if targets.is_empty() {
             Err(Error::TargetNotFound)
@@ -77,5 +68,30 @@ impl Context {
             // More than one target and no serial given
             Err(Error::TooManyMatches)
         }
+    }
+}
+
+/// A punt context.
+pub struct Context {
+    pub(crate) rusb_context: rusb::Context,
+}
+
+impl Context {
+    /// Opens a new punt context. Fails with [`Error::IoError`] when failing to create a libusb
+    /// context.
+    ///
+    /// [`Error::IoError`]: enum.Error.html#variant.IoError
+    pub fn new() -> Result<Self> {
+        let rusb_context = rusb::Context::new()?;
+        // usb_context.set_log_level(libusb::LogLevel::Debug);
+        Ok(Context { rusb_context })
+    }
+}
+
+impl UsbContext for Context {
+    type RawContext = rusb::Context;
+
+    fn raw_context(&self) -> &Self::RawContext {
+        &self.rusb_context
     }
 }

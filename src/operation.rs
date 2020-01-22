@@ -1,6 +1,7 @@
 use std::iter::Enumerate;
 use std::slice::{Chunks, ChunksMut};
 
+use super::context::UsbContext;
 use super::error::Result;
 use super::flash::Page;
 use super::target_handle::TargetHandle;
@@ -14,7 +15,7 @@ use super::target_handle::TargetHandle;
 /// to be executed explicitly for it to take effect:
 ///
 /// ```rust, no_run
-/// use punt::{Context, Operation};
+/// use punt::{Context, UsbContext, Operation};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Find a bootloader target
@@ -33,7 +34,7 @@ use super::target_handle::TargetHandle;
 /// … but on the other hand, this can be used to have progress feedback from the operation
 ///
 /// ```rust, no_run
-/// use punt::{Context, Operation};
+/// use punt::{Context, UsbContext, Operation};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Find a bootloader target
@@ -70,20 +71,20 @@ pub trait Operation: Iterator<Item = Result<usize>> {
 }
 
 /// Page-wise flash erase operation
-pub struct Erase<'a> {
-    handle: &'a mut TargetHandle<rusb::Context>,
+pub struct Erase<'a, T: UsbContext> {
+    handle: &'a mut TargetHandle<T>,
     pages: Vec<Page>,
     count: usize,
     done: bool,
 }
 
-impl Operation for Erase<'_> {
+impl<T: UsbContext> Operation for Erase<'_, T> {
     fn total(&self) -> usize {
         self.count
     }
 }
 
-impl Iterator for Erase<'_> {
+impl<T: UsbContext> Iterator for Erase<'_, T> {
     type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -108,9 +109,9 @@ impl Iterator for Erase<'_> {
     }
 }
 
-impl<'a> Erase<'a> {
+impl<'a, T: UsbContext> Erase<'a, T> {
     /// Erase a set of given pages (not necessarily a continuous range).
-    pub(crate) fn pages(handle: &'a mut TargetHandle<rusb::Context>, pages: &[Page]) -> Self {
+    pub(crate) fn pages(handle: &'a mut TargetHandle<T>, pages: &[Page]) -> Self {
         Self {
             handle,
             done: pages.is_empty(),
@@ -122,11 +123,7 @@ impl<'a> Erase<'a> {
     /// Erase all necessary pages so that the flash area specified by a start address and length is
     /// completely erased. Due to the page-wise erase, this might erase memory outside the given
     /// area.
-    pub(crate) fn area(
-        handle: &'a mut TargetHandle<rusb::Context>,
-        start: u32,
-        length: usize,
-    ) -> Self {
+    pub(crate) fn area(handle: &'a mut TargetHandle<T>, start: u32, length: usize) -> Self {
         let pages = if length == 0 {
             // No pages should be erased if the area is zero-length
             Vec::new()
@@ -148,8 +145,8 @@ impl<'a> Erase<'a> {
 }
 
 /// Flash program operation.
-pub struct Program<'d, 'a> {
-    handle: &'a mut TargetHandle<rusb::Context>,
+pub struct Program<'d, 'a, T: UsbContext> {
+    handle: &'a mut TargetHandle<T>,
     address: u32,
     chunks: Enumerate<Chunks<'d, u8>>,
     length: usize,
@@ -157,13 +154,13 @@ pub struct Program<'d, 'a> {
     done: bool,
 }
 
-impl Operation for Program<'_, '_> {
+impl<T: UsbContext> Operation for Program<'_, '_, T> {
     fn total(&self) -> usize {
         self.length
     }
 }
 
-impl Iterator for Program<'_, '_> {
+impl<T: UsbContext> Iterator for Program<'_, '_, T> {
     type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -191,14 +188,10 @@ impl Iterator for Program<'_, '_> {
     }
 }
 
-impl<'d, 'a> Program<'d, 'a> {
+impl<'d, 'a, T: UsbContext> Program<'d, 'a, T> {
     /// Write to flash, starting at a given memory location. The memory has to be manually erased
     /// before starting a programming operation.
-    pub(crate) fn at(
-        handle: &'a mut TargetHandle<rusb::Context>,
-        data: &'d [u8],
-        address: u32,
-    ) -> Self {
+    pub(crate) fn at(handle: &'a mut TargetHandle<T>, data: &'d [u8], address: u32) -> Self {
         let chunk_size = handle.max_program_chunk_size();
         Self {
             handle,
@@ -212,8 +205,8 @@ impl<'d, 'a> Program<'d, 'a> {
 }
 
 // Memory read operation.
-pub struct Read<'d, 'a> {
-    handle: &'a mut TargetHandle<rusb::Context>,
+pub struct Read<'d, 'a, T: UsbContext> {
+    handle: &'a mut TargetHandle<T>,
     address: u32,
     chunks: Enumerate<ChunksMut<'d, u8>>,
     length: usize,
@@ -221,13 +214,13 @@ pub struct Read<'d, 'a> {
     done: bool,
 }
 
-impl Operation for Read<'_, '_> {
+impl<T: UsbContext> Operation for Read<'_, '_, T> {
     fn total(&self) -> usize {
         self.length
     }
 }
 
-impl Iterator for Read<'_, '_> {
+impl<T: UsbContext> Iterator for Read<'_, '_, T> {
     type Item = Result<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -255,13 +248,9 @@ impl Iterator for Read<'_, '_> {
     }
 }
 
-impl<'d, 'a> Read<'d, 'a> {
+impl<'d, 'a, T: UsbContext> Read<'d, 'a, T> {
     /// Read from the microcontroller's memory to a buffer, starting at the supplied address.
-    pub(crate) fn at(
-        handle: &'a mut TargetHandle<rusb::Context>,
-        buffer: &'d mut [u8],
-        address: u32,
-    ) -> Self {
+    pub(crate) fn at(handle: &'a mut TargetHandle<T>, buffer: &'d mut [u8], address: u32) -> Self {
         let chunk_size = handle.max_read_chunk_size();
         Self {
             handle,

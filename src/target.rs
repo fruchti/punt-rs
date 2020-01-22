@@ -1,11 +1,10 @@
-use rusb::UsbContext;
-
 use super::bootloader_info::BootloaderInfo;
-use super::context::Context;
+use super::context::UsbContext;
 use super::error::{Error, Result};
 use super::flash::Page;
 use super::operation::{Erase, Program, Read};
 use super::target_handle::{crc32, get_serial, TargetHandle};
+use rusb::UsbContext as _;
 
 /// Contains necessary information to connect to a target via USB.
 pub struct TargetInfo {
@@ -20,18 +19,18 @@ pub struct TargetInfo {
 }
 
 /// Contains a connected target and allows operations to be carried out.
-pub struct Target {
+pub struct Target<T: UsbContext> {
     /// Handle for the low-level communication
-    handle: TargetHandle<rusb::Context>,
+    handle: TargetHandle<T>,
 
     /// More information about the bootloader
     pub bootloader_info: BootloaderInfo,
 }
 
-impl<'a> TargetInfo {
+impl TargetInfo {
     /// Connects to a target. Fails if the USB device is not a valid punt target.
-    pub fn open(&self, context: &'a mut Context) -> Result<Target> {
-        for device in context.usb_context.devices()?.iter() {
+    pub fn open<T: UsbContext>(&self, context: &T) -> Result<Target<T>> {
+        for device in context.raw_context().devices()?.iter() {
             if device.bus_number() == self.usb_bus_number
                 && device.address() == self.usb_bus_address
             {
@@ -57,7 +56,7 @@ impl<'a> TargetInfo {
     }
 }
 
-impl<'a, 'd> Target {
+impl<'a, 'd, T: UsbContext> Target<T> {
     /// Queries a CRC32 from the target for a given memory area.
     pub fn read_crc(&mut self, address: u32, length: usize) -> Result<u32> {
         self.handle.read_crc(address, length as u32)
@@ -84,7 +83,7 @@ impl<'a, 'd> Target {
     }
 
     /// Erases a number of pages.
-    pub fn erase_pages(&mut self, pages: &[Page]) -> Result<Erase<'_>> {
+    pub fn erase_pages(&mut self, pages: &[Page]) -> Result<Erase<'_, T>> {
         if pages
             .iter()
             .any(|page| !self.bootloader_info.application_pages().contains(&page))
@@ -98,7 +97,7 @@ impl<'a, 'd> Target {
     /// Erases the minimum number of pages to ensure the supplied area is completely erased. This
     /// will, in general, erase a larger area due to the page-wise erase of the microcontroller's
     /// flash memory.
-    pub fn erase_area(&mut self, start: u32, length: usize) -> Result<Erase<'_>> {
+    pub fn erase_area(&mut self, start: u32, length: usize) -> Result<Erase<'_, T>> {
         // Ensure that the requested area is fully within application flash
         if (self.bootloader_info.application_base > start)
             || (self.bootloader_info.application_base as usize
@@ -113,7 +112,7 @@ impl<'a, 'd> Target {
 
     /// Programs a buffer's contents into the microcontroller's flash at the given start address.
     /// The flash area has to be erased for this operation to succeed.
-    pub fn program_at(&mut self, data: &'d [u8], address: u32) -> Result<Program<'d, '_>> {
+    pub fn program_at(&mut self, data: &'d [u8], address: u32) -> Result<Program<'d, '_, T>> {
         // Ensure that the area to be written to is fully within application flash
         if (self.bootloader_info.application_base > address)
             || (self.bootloader_info.application_base as usize
@@ -132,7 +131,7 @@ impl<'a, 'd> Target {
     }
 
     /// Reads from the target's memory into a buffer.
-    pub fn read_at(&mut self, buffer: &'d mut [u8], address: u32) -> Result<Read<'d, '_>> {
+    pub fn read_at(&mut self, buffer: &'d mut [u8], address: u32) -> Result<Read<'d, '_, T>> {
         // Ensure that the requested area is fully within application flash
         if (self.bootloader_info.application_base > address)
             || (self.bootloader_info.application_base as usize

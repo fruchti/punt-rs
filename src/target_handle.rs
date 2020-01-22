@@ -1,8 +1,9 @@
+use super::context::UsbContext;
 use super::error::{Error, Result};
 use super::flash::Page;
 use super::BootloaderInfo;
 use crc_any::CRC;
-use rusb::{Device, DeviceHandle, UsbContext};
+use rusb::{Device, DeviceHandle};
 use std::convert::TryInto;
 
 use super::TIMEOUT;
@@ -18,7 +19,7 @@ fn read_ne_u32(input: &mut &[u8]) -> u32 {
 /// [`Err(Error::UnsupportedTarget)`] otherwise.
 ///
 /// [`Err(Error::UnsupportedTarget)`]: enum.Error.html#variant.UnsupportedTarget
-pub(crate) fn get_serial<T: UsbContext>(device: &Device<T>) -> Result<String> {
+pub(crate) fn get_serial<T: rusb::UsbContext>(device: &Device<T>) -> Result<String> {
     // Constants used to identify the device. The shared VID:PID pair used here
     // mandates a check for the manufacturer and product strings
     const PRODUCT_STRING: &str = "Punt\u{0}";
@@ -53,7 +54,7 @@ pub(crate) fn get_serial<T: UsbContext>(device: &Device<T>) -> Result<String> {
 /// Struct for the raw USB access to a punt target.
 pub(crate) struct TargetHandle<T: UsbContext> {
     // USB device handle for the raw communication.
-    usb_device_handle: DeviceHandle<T>,
+    usb_device_handle: DeviceHandle<T::RawContext>,
 
     /// USB endpoint buffer size for the data in endpoint.
     in_buffer_length: u16,
@@ -65,7 +66,7 @@ pub(crate) struct TargetHandle<T: UsbContext> {
 impl<T: UsbContext> TargetHandle<T> {
     /// Creates a target handle from a USB device. Caution: Does not check if the USB device
     /// actually is a valid bootloader target.
-    pub fn from_usb_device(device: Device<T>) -> Result<Self> {
+    pub fn from_usb_device(device: Device<T::RawContext>) -> Result<Self> {
         // Fetch endpoint sizes
         let config_descriptor = device.active_config_descriptor()?;
         let interface_descriptor = config_descriptor

@@ -3,7 +3,7 @@
 //!
 //! # Example: Basic flashing
 //! ```rust, no_run
-//! use punt::{Context, Operation};
+//! use punt::{Context, UsbContext, Operation};
 //! use std::fs::File;
 //! use std::io::{Read, Write};
 //!
@@ -51,7 +51,7 @@ mod target;
 mod target_handle;
 
 pub use bootloader_info::BootloaderInfo;
-pub use context::Context;
+pub use context::{Context, UsbContext};
 pub use error::{Error, Result};
 pub use flash::{Page, FLASH_BASE, PAGE_SIZE};
 pub use operation::Operation;
