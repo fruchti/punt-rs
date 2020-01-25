@@ -54,7 +54,7 @@ pub(crate) fn get_serial<T: rusb::UsbContext>(device: &Device<T>) -> Result<Stri
 /// Struct for the raw USB access to a punt target.
 pub(crate) struct TargetHandle<T: UsbContext> {
     // USB device handle for the raw communication.
-    usb_device_handle: DeviceHandle<T::RawContext>,
+    usb_device_handle: DeviceHandle<T>,
 
     /// USB endpoint buffer size for the data in endpoint.
     in_buffer_length: u16,
@@ -66,7 +66,7 @@ pub(crate) struct TargetHandle<T: UsbContext> {
 impl<T: UsbContext> TargetHandle<T> {
     /// Creates a target handle from a USB device. Caution: Does not check if the USB device
     /// actually is a valid bootloader target.
-    pub fn from_usb_device(device: Device<T::RawContext>) -> Result<Self> {
+    pub fn from_usb_device(device: Device<T>) -> Result<Self> {
         // Fetch endpoint sizes
         let config_descriptor = device.active_config_descriptor()?;
         let interface_descriptor = config_descriptor

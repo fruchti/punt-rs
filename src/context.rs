@@ -1,16 +1,11 @@
 use super::error::{Error, Result};
 use super::target::TargetInfo;
 use super::target_handle::get_serial;
-use rusb::UsbContext as _;
+// use rusb::UsbContext as _;
 
 /// Base trait for a USB context. This is a small wrapper around rusb::UsbContext with a few
 /// convenience functions.
-pub trait UsbContext {
-    type RawContext: rusb::UsbContext;
-
-    /// Returns a rusb::UsbContext for raw USB access.
-    fn raw_context(&self) -> &Self::RawContext;
-
+pub trait UsbContext: rusb::UsbContext {
     /// Returns information about all connected targets in bootloader mode. USB devices not in
     /// bootloader mode cannot be detected, since the ir protocol for entering bootloader mode is
     /// not specified.
@@ -21,7 +16,7 @@ pub trait UsbContext {
     fn find_targets(&self) -> Result<Vec<TargetInfo>> {
         let mut targets = Vec::new();
 
-        for device in self.raw_context().devices()?.iter() {
+        for device in self.devices()?.iter() {
             if let Ok(serial) = get_serial(&device) {
                 targets.push(TargetInfo {
                     serial,
@@ -71,27 +66,6 @@ pub trait UsbContext {
     }
 }
 
-/// A punt context.
-pub struct Context {
-    pub(crate) rusb_context: rusb::Context,
-}
+pub type Context = rusb::Context;
 
-impl Context {
-    /// Opens a new punt context. Fails with [`Error::IoError`] when failing to create a libusb
-    /// context.
-    ///
-    /// [`Error::IoError`]: enum.Error.html#variant.IoError
-    pub fn new() -> Result<Self> {
-        let rusb_context = rusb::Context::new()?;
-        // usb_context.set_log_level(libusb::LogLevel::Debug);
-        Ok(Context { rusb_context })
-    }
-}
-
-impl UsbContext for Context {
-    type RawContext = rusb::Context;
-
-    fn raw_context(&self) -> &Self::RawContext {
-        &self.rusb_context
-    }
-}
+impl UsbContext for Context {}

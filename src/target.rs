@@ -4,7 +4,6 @@ use super::error::{Error, Result};
 use super::flash::Page;
 use super::operation::{Erase, Program, Read};
 use super::target_handle::{crc32, get_serial, TargetHandle};
-use rusb::UsbContext as _;
 
 /// Contains necessary information to connect to a target via USB.
 pub struct TargetInfo {
@@ -30,7 +29,7 @@ pub struct Target<T: UsbContext> {
 impl TargetInfo {
     /// Connects to a target. Fails if the USB device is not a valid punt target.
     pub fn open<T: UsbContext>(&self, context: &T) -> Result<Target<T>> {
-        for device in context.raw_context().devices()?.iter() {
+        for device in context.devices()?.iter() {
             if device.bus_number() == self.usb_bus_number
                 && device.address() == self.usb_bus_address
             {
