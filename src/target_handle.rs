@@ -1,12 +1,12 @@
-use super::context::UsbContext;
-use super::error::{Error, Result};
-use super::flash::Page;
-use super::BootloaderInfo;
+use crate::context::UsbContext;
+use crate::error::{Error, Result};
+use crate::flash::Page;
+use crate::BootloaderInfo;
 use crc_any::CRC;
 use rusb::{Device, DeviceHandle};
 use std::convert::TryInto;
 
-use super::TIMEOUT;
+use crate::TIMEOUT;
 
 /// Splits the first four bytes of a slice off and interpret them as a little-endian u32.
 fn read_ne_u32(input: &mut &[u8]) -> u32 {

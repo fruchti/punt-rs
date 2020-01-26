@@ -1,10 +1,10 @@
 use std::iter::Enumerate;
 use std::slice::{Chunks, ChunksMut};
 
-use super::context::UsbContext;
-use super::error::Result;
-use super::flash::Page;
-use super::target_handle::TargetHandle;
+use crate::context::UsbContext;
+use crate::error::Result;
+use crate::flash::Page;
+use crate::target_handle::TargetHandle;
 
 /// General-purpose trait for operations which take multiple command transmissions via USB, e.g.
 /// reading or writing a larger section of memory in smaller blocks.

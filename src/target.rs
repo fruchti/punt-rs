@@ -1,9 +1,9 @@
-use super::bootloader_info::BootloaderInfo;
-use super::context::UsbContext;
-use super::error::{Error, Result};
-use super::flash::Page;
-use super::operation::{Erase, Program, Read};
-use super::target_handle::{crc32, get_serial, TargetHandle};
+use crate::bootloader_info::BootloaderInfo;
+use crate::context::UsbContext;
+use crate::error::{Error, Result};
+use crate::flash::Page;
+use crate::operation::{Erase, Program, Read};
+use crate::target_handle::{crc32, get_serial, TargetHandle};
 
 /// Contains necessary information to connect to a target via USB.
 pub struct TargetInfo {

@@ -1,6 +1,6 @@
-use super::error::{Error, Result};
-use super::target::TargetInfo;
-use super::target_handle::get_serial;
+use crate::error::{Error, Result};
+use crate::target::TargetInfo;
+use crate::target_handle::get_serial;
 // use rusb::UsbContext as _;
 
 /// Base trait for a USB context. This is a small wrapper around rusb::UsbContext with a few

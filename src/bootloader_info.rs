@@ -1,7 +1,6 @@
+use crate::flash::Page;
 use std::fmt;
 use std::ops::RangeInclusive;
-
-use super::flash::Page;
 
 /// Suppository information read back from the bootloader.
 #[derive(Debug)]
