@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
-use crate::target::TargetInfo;
-use crate::target_handle::get_serial;
-// use rusb::UsbContext as _;
+use crate::target::Target;
+use std::convert::TryFrom;
 
 /// Base trait for a USB context. This is a small wrapper around rusb::UsbContext with a few
 /// convenience functions.
@@ -13,20 +12,13 @@ pub trait UsbContext: rusb::UsbContext {
     /// It returns [`Error::IoError`] on USB errors during device enumeration.
     ///
     /// [`Error::IoError`]: enum.Error.html#variant.IoError
-    fn find_targets(&self) -> Result<Vec<TargetInfo>> {
-        let mut targets = Vec::new();
-
-        for device in self.devices()?.iter() {
-            if let Ok(serial) = get_serial(&device) {
-                targets.push(TargetInfo {
-                    serial,
-                    usb_bus_number: device.bus_number(),
-                    usb_bus_address: device.address(),
-                });
-            }
-        }
-
-        Ok(targets)
+    fn find_targets(&self) -> Result<Vec<Target<Self>>> {
+        Ok(self
+            .devices()?
+            .iter()
+            // try_from() will return Err(UnsupportedDevice) if the USB device is not a punt target
+            .filter_map(|d| Target::try_from(d).ok())
+            .collect())
     }
 
     /// Returns one target if either
@@ -47,21 +39,23 @@ pub trait UsbContext: rusb::UsbContext {
     /// [`Error::IoError`]: enum.Error.html#variant.IoError
     /// [`Error::TargetNotFound`]: enum.Error.html#variant.TargetNotFound
     /// [`Error::TooManyMatches`]: enum.Error.html#variant.TooManyMatches
-    fn pick_target(&self, serial: Option<&str>) -> Result<TargetInfo> {
+    fn pick_target(&self, serial: Option<&str>) -> Result<Target<Self>> {
         let targets = self.find_targets()?;
-        if targets.is_empty() {
-            Err(Error::TargetNotFound)
-        } else if let Some(serial) = serial {
-            if let Some(target) = targets.into_iter().find(|i| i.serial == serial) {
-                Ok(target)
-            } else {
-                Err(Error::TargetNotFound)
-            }
-        } else if targets.len() == 1 {
-            Ok(targets.into_iter().next().unwrap())
-        } else {
+        if let Some(serial) = serial {
+            targets
+                .into_iter()
+                .find_map(|t| match t.serial() {
+                    Ok(s) if s == serial => Some(Ok(t)),
+                    Err(e) => Some(Err(e)),
+                    _ => None,
+                })
+                .unwrap_or(Err(Error::TargetNotFound))
+        } else if targets.len() > 1 {
             // More than one target and no serial given
             Err(Error::TooManyMatches)
+        } else {
+            // One or zero targets found and no serial given. Return first one if existant.
+            targets.into_iter().next().ok_or(Error::TargetNotFound)
         }
     }
 }

@@ -20,10 +20,10 @@ use crate::target_handle::TargetHandle;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Find a bootloader target
 /// let mut context = Context::new()?;
-/// let mut target = context.pick_target(None)?.open(&mut context)?;
+/// let mut target_handle = context.pick_target(None)?.open()?;
 ///
 /// // Create an erase Operation
-/// let mut erase = target.erase_area(0x0800_0c00, 1024)?;
+/// let mut erase = target_handle.erase_area(0x0800_0c00, 1024)?;
 ///
 /// // Execute the erase and check its result
 /// erase.execute()?;
@@ -39,10 +39,10 @@ use crate::target_handle::TargetHandle;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// // Find a bootloader target
 /// let mut context = Context::new()?;
-/// let mut target = context.pick_target(None)?.open(&mut context)?;
+/// let mut target_handle = context.pick_target(None)?.open()?;
 ///
 /// // Create an erase Operation
-/// let mut erase = target.erase_area(0x0800_0c00, 1024)?;
+/// let mut erase = target_handle.erase_area(0x0800_0c00, 1024)?;
 ///
 /// let total = erase.total();
 /// for status in erase {

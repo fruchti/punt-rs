@@ -1,9 +1,10 @@
 use crate::context::UsbContext;
 use crate::error::{Error, Result};
 use crate::flash::Page;
+use crate::operation::{Erase, Program, Read};
 use crate::BootloaderInfo;
 use crc_any::CRC;
-use rusb::{Device, DeviceHandle};
+use rusb::DeviceHandle;
 use std::convert::TryInto;
 
 use crate::TIMEOUT;
@@ -15,81 +16,19 @@ fn read_ne_u32(input: &mut &[u8]) -> u32 {
     u32::from_ne_bytes(int_bytes.try_into().unwrap())
 }
 
-/// Returns the serial number string of a USB device, if it is a supported target and
-/// [`Err(Error::UnsupportedTarget)`] otherwise.
-///
-/// [`Err(Error::UnsupportedTarget)`]: enum.Error.html#variant.UnsupportedTarget
-pub(crate) fn get_serial<T: rusb::UsbContext>(device: &Device<T>) -> Result<String> {
-    // Constants used to identify the device. The shared VID:PID pair used here
-    // mandates a check for the manufacturer and product strings
-    const PRODUCT_STRING: &str = "Punt\u{0}";
-    const VENDOR_STRING: &str = "\u{0}";
-    const VENDOR_ID: u16 = 0x16c0;
-    const PRODUCT_ID: u16 = 0x05dc;
-
-    let device_desc = device.device_descriptor()?;
-
-    if device_desc.vendor_id() == VENDOR_ID && device_desc.product_id() == PRODUCT_ID {
-        let device_handle = device.open()?;
-
-        // Choose first language (the punt bootloader only supports English anyway)
-        let language = device_handle.read_languages(TIMEOUT)?[0];
-
-        let vendor_string =
-            device_handle.read_manufacturer_string(language, &device_desc, TIMEOUT)?;
-        let product_string = device_handle.read_product_string(language, &device_desc, TIMEOUT)?;
-
-        if vendor_string == VENDOR_STRING && product_string == PRODUCT_STRING {
-            return device_handle
-                .read_serial_number_string(language, &device_desc, TIMEOUT)
-                .map(|serial| serial[..(serial.len() - 1)].to_owned()) // Remove zero termination
-                .map_err(std::convert::Into::into);
-        } else {
-            return Err(Error::UnsupportedTarget);
-        }
-    }
-    Err(Error::UnsupportedTarget)
-}
-
-/// Struct for the raw USB access to a punt target.
-pub(crate) struct TargetHandle<T: UsbContext> {
+/// Contains a connected target and allows operations to be carried out.
+pub struct TargetHandle<T: UsbContext> {
     // USB device handle for the raw communication.
-    usb_device_handle: DeviceHandle<T>,
+    pub(crate) usb_device_handle: DeviceHandle<T>,
 
     /// USB endpoint buffer size for the data in endpoint.
-    in_buffer_length: u16,
+    pub(crate) in_buffer_length: u16,
 
     /// USB endpoint buffer size for the data out endpoint.
-    out_buffer_length: u16,
+    pub(crate) out_buffer_length: u16,
 }
 
 impl<T: UsbContext> TargetHandle<T> {
-    /// Creates a target handle from a USB device. Caution: Does not check if the USB device
-    /// actually is a valid bootloader target.
-    pub fn from_usb_device(device: Device<T>) -> Result<Self> {
-        // Fetch endpoint sizes
-        let config_descriptor = device.active_config_descriptor()?;
-        let interface_descriptor = config_descriptor
-            .interfaces()
-            .next()
-            .unwrap()
-            .descriptors()
-            .next()
-            .unwrap();
-        let mut endpoint_descriptors = interface_descriptor.endpoint_descriptors();
-        let in_buffer_length = endpoint_descriptors.next().unwrap().max_packet_size();
-        let out_buffer_length = endpoint_descriptors.next().unwrap().max_packet_size();
-
-        let mut device_handle = device.open()?;
-        device_handle.reset()?;
-
-        Ok(Self {
-            usb_device_handle: device_handle,
-            in_buffer_length,
-            out_buffer_length,
-        })
-    }
-
     /// Queries bootloader information from the target.
     pub fn bootloader_info(&mut self) -> Result<BootloaderInfo> {
         let mut info_packet = [0u8; 16];
@@ -115,10 +54,10 @@ impl<T: UsbContext> TargetHandle<T> {
     }
 
     /// Queries a CRC32 from the target for a given memory area.
-    pub fn read_crc(&mut self, start: u32, length: u32) -> Result<u32> {
+    pub fn read_crc(&mut self, start: u32, length: usize) -> Result<u32> {
         let mut request_packet = vec![0u8; 8];
         request_packet[0..4].copy_from_slice(&start.to_le_bytes());
-        request_packet[4..8].copy_from_slice(&length.to_le_bytes());
+        request_packet[4..8].copy_from_slice(&(length as u32).to_le_bytes());
         let mut crc_packet = [0u8; 4];
 
         self.send_command(Command::ReadCrc, &request_packet, &mut crc_packet)?;
@@ -128,9 +67,20 @@ impl<T: UsbContext> TargetHandle<T> {
         Ok(crc)
     }
 
+    /// Verifies the supplied buffer against the target memory region beginning at the supplied
+    /// address with a CRC32 check.
+    pub fn verify(&mut self, data: &[u8], address: u32) -> Result<()> {
+        let crc = self.read_crc(address, data.len())?;
+        if crc == crc32(data) {
+            Ok(())
+        } else {
+            Err(Error::VerificationError)
+        }
+    }
+
     /// Returns the maximum size of a single chunk for a memory read operation (limited by the USB
     /// endpoint buffer size).
-    pub fn max_read_chunk_size(&self) -> usize {
+    pub(crate) fn max_read_chunk_size(&self) -> usize {
         self.in_buffer_length as usize
     }
 
@@ -138,7 +88,7 @@ impl<T: UsbContext> TargetHandle<T> {
     /// queried with [`max_read_chunk_size`].
     ///
     /// [`max_read_chunk_size`]: #method.max_read_chunk_size
-    pub fn read_chunk(&mut self, start: u32, buffer: &mut [u8]) -> Result<()> {
+    pub(crate) fn read_chunk(&mut self, start: u32, buffer: &mut [u8]) -> Result<()> {
         let mut request_packet = vec![0u8; 8];
         request_packet[0..4].copy_from_slice(&start.to_le_bytes());
         request_packet[4..8].copy_from_slice(&(buffer.len() as u32).to_le_bytes());
@@ -146,8 +96,8 @@ impl<T: UsbContext> TargetHandle<T> {
         self.send_command(Command::ReadMemory, &request_packet, buffer)
     }
 
-    /// Erases a single flash page.
-    pub fn erase_page(&mut self, page: Page) -> Result<()> {
+    /// Erases a single flash page. Caution: The page index is unchecked.
+    pub(crate) fn erase_page(&mut self, page: Page) -> Result<()> {
         let request_packet = [page.into()];
         let mut status_packet = [0u8];
         self.send_command(Command::ErasePage, &request_packet, &mut status_packet)?;
@@ -158,9 +108,38 @@ impl<T: UsbContext> TargetHandle<T> {
         }
     }
 
+    /// Erases a number of pages.
+    pub fn erase_pages(&mut self, pages: &[Page]) -> Result<Erase<'_, T>> {
+        let bootloader_info = self.bootloader_info()?;
+        if pages
+            .iter()
+            .any(|page| !bootloader_info.application_pages().contains(&page))
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Erase::pages(self, pages))
+    }
+
+    /// Erases the minimum number of pages to ensure the supplied area is completely erased. This
+    /// will, in general, erase a larger area due to the page-wise erase of the microcontroller's
+    /// flash memory.
+    pub fn erase_area(&mut self, start: u32, length: usize) -> Result<Erase<'_, T>> {
+        // Ensure that the requested area is fully within application flash
+        let bootloader_info = self.bootloader_info()?;
+        if (bootloader_info.application_base > start)
+            || (bootloader_info.application_base as usize + bootloader_info.application_size
+                < start as usize + length)
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Erase::area(self, start, length))
+    }
+
     /// Returns the maximum size of a single chunk for a flash write operation (limited by the USB
     /// endpoint buffer size).
-    pub fn max_program_chunk_size(&self) -> usize {
+    pub(crate) fn max_program_chunk_size(&self) -> usize {
         // The packets written via USB include not only the payload, but also the start address. The
         // payload size is thus 4 bytes smaller than the available buffer.
         self.out_buffer_length as usize - 4
@@ -171,7 +150,7 @@ impl<T: UsbContext> TargetHandle<T> {
     /// with [`max_program_chunk_size`].
     ///
     /// [`max_read_chunk_size`]: #method.max_program_chunk_size
-    pub fn program_chunk(&mut self, start: u32, data: &[u8]) -> Result<()> {
+    pub(crate) fn program_chunk(&mut self, start: u32, data: &[u8]) -> Result<()> {
         let mut address_packet = vec![0u8; 4];
         address_packet[0..4].copy_from_slice(&start.to_le_bytes());
 
@@ -179,6 +158,40 @@ impl<T: UsbContext> TargetHandle<T> {
         packet.extend(address_packet);
         packet.extend(data);
         self.send_command(Command::Program, &packet, &mut [0; 0])
+    }
+
+    /// Programs a buffer's contents into the microcontroller's flash at the given start address.
+    /// The flash area has to be erased for this operation to succeed.
+    pub fn program_at<'d>(&mut self, data: &'d [u8], address: u32) -> Result<Program<'d, '_, T>> {
+        // Ensure that the area to be written to is fully within application flash
+        let bootloader_info = self.bootloader_info()?;
+        if (bootloader_info.application_base > address)
+            || (bootloader_info.application_base as usize + bootloader_info.application_size
+                < address as usize + data.len())
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        // Programing works halfword-wise and will crash if the address is not aligned
+        if address % 2 != 0 {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Program::at(self, data, address))
+    }
+
+    /// Reads from the target's memory into a buffer.
+    pub fn read_at<'d>(&mut self, buffer: &'d mut [u8], address: u32) -> Result<Read<'d, '_, T>> {
+        // Ensure that the requested area is fully within application flash
+        let bootloader_info = self.bootloader_info()?;
+        if (bootloader_info.application_base > address)
+            || (bootloader_info.application_base as usize + bootloader_info.application_size
+                < address as usize + buffer.len())
+        {
+            return Err(Error::InvalidRequest);
+        }
+
+        Ok(Read::at(self, buffer, address))
     }
 
     /// Lets the target exit from the bootloader and start its application.
