@@ -41,7 +41,7 @@ use crate::target_handle::TargetHandle;
 /// let mut context = Context::new()?;
 /// let mut target_handle = context.pick_target(None)?.open()?;
 ///
-/// // Create an erase Operation
+/// // Create an Erase Operation
 /// let mut erase = target_handle.erase_area(0x0800_0c00, 1024)?;
 ///
 /// let total = erase.total();

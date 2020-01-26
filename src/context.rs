@@ -2,11 +2,10 @@ use crate::error::{Error, Result};
 use crate::target::Target;
 use std::convert::TryFrom;
 
-/// Base trait for a USB context. This is a small wrapper around rusb::UsbContext with a few
-/// convenience functions.
+/// Base trait for a USB context.
 pub trait UsbContext: rusb::UsbContext {
     /// Returns information about all connected targets in bootloader mode. USB devices not in
-    /// bootloader mode cannot be detected, since the ir protocol for entering bootloader mode is
+    /// bootloader mode cannot be detected, since their protocol for entering bootloader mode is
     /// not specified.
     ///
     /// It returns [`Error::IoError`] on USB errors during device enumeration.
@@ -60,6 +59,7 @@ pub trait UsbContext: rusb::UsbContext {
     }
 }
 
+/// A punt context, necessary for USB communication.
 pub type Context = rusb::Context;
 
 impl UsbContext for Context {}
