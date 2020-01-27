@@ -1,10 +1,12 @@
-use std::iter::Enumerate;
-use std::slice::{Chunks, ChunksMut};
+//! Contains multi-step operations, i.e. erasing an area by erasing multiple pages subsequently abd
+//! reading/writing flash memory blockwise.
 
 use crate::context::UsbContext;
 use crate::error::Result;
 use crate::flash::Page;
 use crate::target_handle::TargetHandle;
+use std::iter::Enumerate;
+use std::slice::{Chunks, ChunksMut};
 
 /// General-purpose trait for operations which take multiple command transmissions via USB, e.g.
 /// reading or writing a larger section of memory in smaller blocks.
@@ -70,7 +72,7 @@ pub trait Operation: Iterator<Item = Result<usize>> {
     }
 }
 
-/// Page-wise flash erase operation
+/// A page-wise flash erase operation.
 pub struct Erase<'a, T: UsbContext> {
     handle: &'a mut TargetHandle<T>,
     pages: Vec<Page>,
@@ -79,6 +81,7 @@ pub struct Erase<'a, T: UsbContext> {
 }
 
 impl<T: UsbContext> Operation for Erase<'_, T> {
+    /// Returns the total number of pages.
     fn total(&self) -> usize {
         self.count
     }
@@ -144,7 +147,7 @@ impl<'a, T: UsbContext> Erase<'a, T> {
     }
 }
 
-/// Flash program operation.
+/// A flash program operation.
 pub struct Program<'d, 'a, T: UsbContext> {
     handle: &'a mut TargetHandle<T>,
     address: u32,
@@ -155,6 +158,7 @@ pub struct Program<'d, 'a, T: UsbContext> {
 }
 
 impl<T: UsbContext> Operation for Program<'_, '_, T> {
+    /// Returns the total size in bytes.
     fn total(&self) -> usize {
         self.length
     }
@@ -204,7 +208,7 @@ impl<'d, 'a, T: UsbContext> Program<'d, 'a, T> {
     }
 }
 
-// Memory read operation.
+/// Memory read operation.
 pub struct Read<'d, 'a, T: UsbContext> {
     handle: &'a mut TargetHandle<T>,
     address: u32,
@@ -215,6 +219,7 @@ pub struct Read<'d, 'a, T: UsbContext> {
 }
 
 impl<T: UsbContext> Operation for Read<'_, '_, T> {
+    /// Returns the total size in bytes.
     fn total(&self) -> usize {
         self.length
     }

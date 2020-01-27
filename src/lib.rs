@@ -46,7 +46,7 @@ mod bootloader_info;
 mod context;
 mod error;
 mod flash;
-mod operation;
+pub mod operation;
 mod target;
 mod target_handle;
 
