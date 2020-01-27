@@ -160,7 +160,7 @@ impl<T: UsbContext> TargetHandle<T> {
     }
 
     /// Programs a buffer's contents into the microcontroller's flash at the given start address.
-    /// The flash area has to be erased for this operation to succeed.
+    /// The flash area must have been erased already for this operation to succeed.
     pub fn program_at<'d>(&mut self, data: &'d [u8], address: u32) -> Result<Program<'d, '_, T>> {
         // Ensure that the area to be written to is fully within application flash
         let bootloader_info = self.bootloader_info()?;
