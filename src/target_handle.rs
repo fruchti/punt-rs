@@ -3,11 +3,10 @@ use crate::error::{Error, Result};
 use crate::flash::Page;
 use crate::operation::{Erase, Program, Read};
 use crate::BootloaderInfo;
+use crate::TIMEOUT;
 use crc_any::CRC;
 use rusb::DeviceHandle;
 use std::convert::TryInto;
-
-use crate::TIMEOUT;
 
 /// Splits the first four bytes of a slice off and interpret them as a little-endian u32.
 fn read_ne_u32(input: &mut &[u8]) -> u32 {
