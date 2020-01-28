@@ -30,13 +30,19 @@ impl<T: UsbContext> Target<T> {
         let interface_descriptor = config_descriptor
             .interfaces()
             .next()
-            .unwrap()
+            .ok_or(Error::IoError(rusb::Error::Io))?
             .descriptors()
             .next()
-            .unwrap();
+            .ok_or(Error::IoError(rusb::Error::Io))?;
         let mut endpoint_descriptors = interface_descriptor.endpoint_descriptors();
-        let in_buffer_length = endpoint_descriptors.next().unwrap().max_packet_size();
-        let out_buffer_length = endpoint_descriptors.next().unwrap().max_packet_size();
+        let in_buffer_length = endpoint_descriptors
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?
+            .max_packet_size();
+        let out_buffer_length = endpoint_descriptors
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?
+            .max_packet_size();
 
         // Open and reset device
         let mut device_handle = self.usb_device.open()?;
