@@ -92,7 +92,7 @@ impl<T: UsbContext> TargetHandle<T> {
         request_packet[0..4].copy_from_slice(&start.to_le_bytes());
         request_packet[4..8].copy_from_slice(&(buffer.len() as u32).to_le_bytes());
 
-        self.send_command(Command::ReadMemory, &request_packet, buffer)
+        self.send_command(Command::ReadMemory, &request_packet, buffer).map(|_| ())
     }
 
     /// Erases a single flash page. Caution: The page index is unchecked.
@@ -156,7 +156,7 @@ impl<T: UsbContext> TargetHandle<T> {
         let mut packet = Vec::with_capacity(data.len() + 4);
         packet.extend(address_packet);
         packet.extend(data);
-        self.send_command(Command::Program, &packet, &mut [0; 0])
+        self.send_command(Command::Program, &packet, &mut [0; 0]).map(|_| ())
     }
 
     /// Programs a buffer's contents into the microcontroller's flash at the given start address.
@@ -195,16 +195,17 @@ impl<T: UsbContext> TargetHandle<T> {
 
     /// Lets the target exit from the bootloader and start its application.
     pub fn exit_bootloader(&mut self) -> Result<()> {
-        self.send_command(Command::Exit, &[0; 0], &mut [0; 0])
+        self.send_command(Command::Exit, &[0; 0], &mut [0; 0]).map(|_| ())
     }
 
-    /// Sends a command to the target, optionally send data and optionally read data back.
+    /// Sends a command to the target, optionally send data and optionally read data back. Returns a
+    /// tuple with the data length written and read.
     fn send_command(
         &mut self,
         cmd: Command,
         write_data: &[u8],
         read_data: &mut [u8],
-    ) -> Result<()> {
+    ) -> Result<(usize, usize)> {
         self.usb_device_handle.claim_interface(0)?;
         self.usb_device_handle.write_control(
             rusb::request_type(
@@ -219,19 +220,21 @@ impl<T: UsbContext> TargetHandle<T> {
             TIMEOUT,
         )?;
 
+        let mut written = 0;
+        let mut read = 0;
+
         // If there is data to send, send it via bulk endpoint 2
         if !write_data.is_empty() {
-            self.usb_device_handle
-                .write_bulk(0x02, &write_data, TIMEOUT)?;
+            written = self.usb_device_handle.write_bulk(0x02, &write_data, TIMEOUT)?;
         }
 
         // If some bytes should be read back, read them from bulk endpoint 1
         if !read_data.is_empty() {
-            self.usb_device_handle.read_bulk(0x81, read_data, TIMEOUT)?;
+            read = self.usb_device_handle.read_bulk(0x81, read_data, TIMEOUT)?;
         }
 
         self.usb_device_handle.release_interface(0)?;
-        Ok(())
+        Ok((written, read))
     }
 }
 
