@@ -78,7 +78,7 @@ dependencies = [
 
 [[package]]
 name = "libusb1-sys"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc 1.0.50 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -99,7 +99,7 @@ name = "punt"
 version = "0.1.0"
 dependencies = [
  "crc-any 2.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusb 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rusb 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -114,12 +114,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rusb"
-version = "0.5.4"
+version = "0.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bit-set 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)",
- "libusb1-sys 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libusb1-sys 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -182,11 +182,11 @@ dependencies = [
 "checksum filetime 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "1ff6d4dab0aa0c8e6346d46052e93b13a16cf847b54ed357087c35011048cc7d"
 "checksum libc 0.2.66 (registry+https://github.com/rust-lang/crates.io-index)" = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
 "checksum libflate 0.1.27 (registry+https://github.com/rust-lang/crates.io-index)" = "d9135df43b1f5d0e333385cb6e7897ecd1a43d7d11b91ac003f4d2c2d2401fdd"
-"checksum libusb1-sys 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "32d20b6c0f54a2419b6081866f7821b89eb289ca248f92e049190a10f1fada44"
+"checksum libusb1-sys 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e01d714676f5aeb27d636f5e502b2f65ee734576bbc09c77e8cf5aa5980fb6f9"
 "checksum pkg-config 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)" = "05da548ad6865900e60eaba7f589cc0783590a92e940c26953ff81ddbab2d677"
 "checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
 "checksum rle-decode-fast 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cabe4fa914dec5870285fa7f71f602645da47c486e68486d2b4ceb4a343e90ac"
-"checksum rusb 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)" = "9c1c7856ddc8f77d741a288176e6c10586c4ac7c56637d33948a7362150a4a26"
+"checksum rusb 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d10caa3e5fc7ad1879a679bf16d3304ea10614b8f2f1a1386be4ec942d44062a"
 "checksum take_mut 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f764005d11ee5f36500a149ace24e00e3da98b0158b3e2d53a7495660d3f4d60"
 "checksum tar 0.4.26 (registry+https://github.com/rust-lang/crates.io-index)" = "b3196bfbffbba3e57481b6ea32249fbaf590396a52505a2615adbb79d9d826d3"
 "checksum vcpkg 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3fc439f2794e98976c88a2a2dafce96b930fe8010b0a256b3c2199a773933168"
