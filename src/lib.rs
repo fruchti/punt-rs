@@ -39,6 +39,8 @@
 //!
 //! [`Operation`]: trait.Operation.html
 
+#![warn(missing_docs)]
+
 extern crate crc_any;
 extern crate rusb;
 
