@@ -42,7 +42,7 @@
 extern crate crc_any;
 extern crate rusb;
 
-mod bootloader_info;
+pub mod bootloader_info;
 mod context;
 mod error;
 mod flash;

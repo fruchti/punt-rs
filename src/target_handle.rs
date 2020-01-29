@@ -1,8 +1,8 @@
+use crate::bootloader_info::{BootloaderInfo, Version};
 use crate::context::UsbContext;
 use crate::error::{Error, Result};
 use crate::flash::Page;
 use crate::operation::{Erase, Program, Read};
-use crate::BootloaderInfo;
 use crate::TIMEOUT;
 use crc_any::CRC;
 use rusb::DeviceHandle;
@@ -13,6 +13,17 @@ fn read_ne_u32(input: &mut &[u8]) -> u32 {
     let (int_bytes, rest) = input.split_at(std::mem::size_of::<u32>());
     *input = rest;
     u32::from_ne_bytes(int_bytes.try_into().unwrap())
+}
+
+/// Splits the first three bytes off a slice and interprets them as (major, minor, patch).
+fn read_version(input: &mut &[u8]) -> Version {
+    let (bytes, rest) = input.split_at(3);
+    *input = rest;
+    Version {
+        major: bytes[0],
+        minor: bytes[1],
+        patch: bytes[2],
+    }
 }
 
 /// Contains a connected target and allows operations to be carried out.
@@ -30,10 +41,13 @@ pub struct TargetHandle<T: UsbContext> {
 impl<T: UsbContext> TargetHandle<T> {
     /// Queries bootloader information from the target.
     pub fn bootloader_info(&mut self) -> Result<BootloaderInfo> {
-        let mut info_packet = [0u8; 16];
-        self.send_command(Command::BootloaderInfo, &[0; 0], &mut info_packet)?;
+        use std::ffi::CString;
 
-        let mut info_packet = &info_packet[..];
+        let mut info_packet = [0u8; 64];
+        let (_, packet_length) =
+            self.send_command(Command::BootloaderInfo, &[0; 0], &mut info_packet)?;
+
+        let mut info_packet = &info_packet[..packet_length];
         let build_date = read_ne_u32(&mut info_packet);
         let build_number = read_ne_u32(&mut info_packet);
         let application_base = read_ne_u32(&mut info_packet);
@@ -44,11 +58,21 @@ impl<T: UsbContext> TargetHandle<T> {
         build_date.insert(6, '-');
         build_date.insert(4, '-');
 
+        let version = read_version(&mut info_packet);
+
+        // Convert the remainder of the packet to a String
+        let identifier = CString::new(info_packet)
+            .map_err(|_| Error::MalformedResponse)?
+            .into_string()
+            .map_err(|_| Error::MalformedResponse)?;
+
         Ok(BootloaderInfo {
             build_number,
             build_date,
             application_base,
             application_size,
+            version,
+            identifier,
         })
     }
 
@@ -92,7 +116,8 @@ impl<T: UsbContext> TargetHandle<T> {
         request_packet[0..4].copy_from_slice(&start.to_le_bytes());
         request_packet[4..8].copy_from_slice(&(buffer.len() as u32).to_le_bytes());
 
-        self.send_command(Command::ReadMemory, &request_packet, buffer).map(|_| ())
+        self.send_command(Command::ReadMemory, &request_packet, buffer)
+            .map(|_| ())
     }
 
     /// Erases a single flash page. Caution: The page index is unchecked.
@@ -156,7 +181,8 @@ impl<T: UsbContext> TargetHandle<T> {
         let mut packet = Vec::with_capacity(data.len() + 4);
         packet.extend(address_packet);
         packet.extend(data);
-        self.send_command(Command::Program, &packet, &mut [0; 0]).map(|_| ())
+        self.send_command(Command::Program, &packet, &mut [0; 0])
+            .map(|_| ())
     }
 
     /// Programs a buffer's contents into the microcontroller's flash at the given start address.
@@ -195,7 +221,8 @@ impl<T: UsbContext> TargetHandle<T> {
 
     /// Lets the target exit from the bootloader and start its application.
     pub fn exit_bootloader(&mut self) -> Result<()> {
-        self.send_command(Command::Exit, &[0; 0], &mut [0; 0]).map(|_| ())
+        self.send_command(Command::Exit, &[0; 0], &mut [0; 0])
+            .map(|_| ())
     }
 
     /// Sends a command to the target, optionally send data and optionally read data back. Returns a
@@ -225,7 +252,9 @@ impl<T: UsbContext> TargetHandle<T> {
 
         // If there is data to send, send it via bulk endpoint 2
         if !write_data.is_empty() {
-            written = self.usb_device_handle.write_bulk(0x02, &write_data, TIMEOUT)?;
+            written = self
+                .usb_device_handle
+                .write_bulk(0x02, &write_data, TIMEOUT)?;
         }
 
         // If some bytes should be read back, read them from bulk endpoint 1

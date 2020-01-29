@@ -28,6 +28,9 @@ pub enum Error {
 
     /// An error occurred during the raw USB communication.
     IoError(rusb::Error),
+
+    /// The target responded with unexpected data.
+    MalformedResponse,
 }
 
 impl StdError for Error {
@@ -40,6 +43,7 @@ impl StdError for Error {
             Error::EraseError(_) => "Flash erase error",
             Error::VerificationError => "Verification error",
             Error::IoError(err) => err.description(),
+            Error::MalformedResponse => "Malformed response",
         }
     }
 }
