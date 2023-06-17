@@ -33,24 +33,24 @@ pub enum Error {
     MalformedResponse,
 }
 
-impl StdError for Error {
-    fn description(&self) -> &str {
-        match self {
-            Error::InvalidRequest => "Invalid request.",
-            Error::TargetNotFound => "Target not found",
-            Error::UnsupportedTarget => "Target is unsupported",
-            Error::TooManyMatches => "Too many matches",
-            Error::EraseError(_) => "Flash erase error",
-            Error::VerificationError => "Verification error",
-            Error::IoError(err) => err.description(),
-            Error::MalformedResponse => "Malformed response",
-        }
-    }
-}
+impl StdError for Error {}
 
 impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter) -> StdResult<(), std::fmt::Error> {
-        fmt.write_str(self.description())
+        if let Error::IoError(err) = self {
+            write!(fmt, "IO Error: {}", err)
+        } else {
+            fmt.write_str(match self {
+                Error::InvalidRequest => "Invalid request.",
+                Error::TargetNotFound => "Target not found",
+                Error::UnsupportedTarget => "Target is unsupported",
+                Error::TooManyMatches => "Too many matches",
+                Error::EraseError(_) => "Flash erase error",
+                Error::VerificationError => "Verification error",
+                Error::MalformedResponse => "Malformed response",
+                Error::IoError(_) => unreachable!(),
+            })
+        }
     }
 }
 
