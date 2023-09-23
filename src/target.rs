@@ -52,7 +52,7 @@ impl<T: UsbContext> Target<T> {
             usb_device_handle: device_handle,
             in_buffer_length,
             out_buffer_length,
-            serial: self.serial()?
+            serial: self.serial()?,
         })
     }
 }

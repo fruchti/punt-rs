@@ -314,7 +314,7 @@ impl<T: UsbContext> TryFrom<rusb::DeviceHandle<T>> for TargetHandle<T> {
             usb_device_handle: handle,
             in_buffer_length,
             out_buffer_length,
-            serial
+            serial,
         })
     }
 }
