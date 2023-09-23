@@ -57,14 +57,14 @@ impl Page {
     }
 }
 
-impl Into<u8> for Page {
-    fn into(self) -> u8 {
-        self.0
+impl From<Page> for u8 {
+    fn from(val: Page) -> Self {
+        val.0
     }
 }
 
-impl Into<u8> for &Page {
-    fn into(self) -> u8 {
-        self.0
+impl From<&Page> for u8 {
+    fn from(val: &Page) -> Self {
+        val.0
     }
 }

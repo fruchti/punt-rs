@@ -44,7 +44,7 @@ pub struct TargetHandle<T: UsbContext> {
 impl<T: UsbContext> TargetHandle<T> {
     /// Return the serial number string.
     pub fn serial(&self) -> &str {
-        return &self.serial;
+        &self.serial
     }
 
     /// Queries bootloader information from the target.
@@ -145,7 +145,7 @@ impl<T: UsbContext> TargetHandle<T> {
         let bootloader_info = self.bootloader_info()?;
         if pages
             .iter()
-            .any(|page| !bootloader_info.application_pages().contains(&page))
+            .any(|page| !bootloader_info.application_pages().contains(page))
         {
             return Err(Error::InvalidRequest);
         }
@@ -262,7 +262,7 @@ impl<T: UsbContext> TargetHandle<T> {
         if !write_data.is_empty() {
             written = self
                 .usb_device_handle
-                .write_bulk(0x02, &write_data, TIMEOUT)?;
+                .write_bulk(0x02, write_data, TIMEOUT)?;
         }
 
         // If some bytes should be read back, read them from bulk endpoint 1
@@ -324,7 +324,7 @@ pub(crate) fn crc32(buff: &[u8]) -> u32 {
     let mut crc = CRC::crc32mpeg2();
     for bytes in buff.chunks(4) {
         let mut word = vec![0u8; 4];
-        word[..bytes.len()].copy_from_slice(&bytes);
+        word[..bytes.len()].copy_from_slice(bytes);
         word.reverse();
         crc.digest(&word);
     }
