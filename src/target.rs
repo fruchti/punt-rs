@@ -67,7 +67,7 @@ impl<T: UsbContext> TryFrom<rusb::Device<T>> for Target<T> {
     fn try_from(device: Device<T>) -> Result<Target<T>> {
         // Constants used to identify the device. The shared VID:PID pair used here
         // mandates a check for the manufacturer and product strings
-        const VENDOR_STRING: &str = "25120";
+        const VENDOR_STRING: &str = "25120.org";
         const PRODUCT_STRING: &str = "punt";
         const VENDOR_ID: u16 = 0x16c0;
         const PRODUCT_ID: u16 = 0x05dc;
