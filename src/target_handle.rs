@@ -6,7 +6,7 @@ use crate::operation::{Erase, Program, Read};
 use crate::TIMEOUT;
 use crc_any::CRC;
 use rusb::DeviceHandle;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 /// Splits the first four bytes of a slice off and interpret them as a little-endian u32.
 fn read_ne_u32(input: &mut &[u8]) -> u32 {
@@ -36,9 +36,17 @@ pub struct TargetHandle<T: UsbContext> {
 
     /// USB endpoint buffer size for the data out endpoint.
     pub(crate) out_buffer_length: u16,
+
+    /// Serial number string of the device.
+    pub(crate) serial: String,
 }
 
 impl<T: UsbContext> TargetHandle<T> {
+    /// Return the serial number string.
+    pub fn serial(&self) -> &str {
+        return &self.serial;
+    }
+
     /// Queries bootloader information from the target.
     pub fn bootloader_info(&mut self) -> Result<BootloaderInfo> {
         use std::ffi::CString;
@@ -264,6 +272,50 @@ impl<T: UsbContext> TargetHandle<T> {
 
         self.usb_device_handle.release_interface(0)?;
         Ok((written, read))
+    }
+}
+
+impl<T: UsbContext> TryFrom<rusb::DeviceHandle<T>> for TargetHandle<T> {
+    type Error = Error;
+
+    /// Convert a raw USB device handle into a target handle. Note that this does only check if the
+    /// needed endpoints exist and cannot guarantee that the USB device actually is running a punt
+    /// bootloader.
+    fn try_from(mut handle: rusb::DeviceHandle<T>) -> Result<Self> {
+        // Fetch endpoint sizes
+        let device = handle.device();
+        let config_descriptor = device.active_config_descriptor()?;
+        let interface_descriptor = config_descriptor
+            .interfaces()
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?
+            .descriptors()
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?;
+        let mut endpoint_descriptors = interface_descriptor.endpoint_descriptors();
+        let in_buffer_length = endpoint_descriptors
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?
+            .max_packet_size();
+        let out_buffer_length = endpoint_descriptors
+            .next()
+            .ok_or(Error::IoError(rusb::Error::Io))?
+            .max_packet_size();
+
+        // Choose first language (the punt bootloader only supports English anyway)
+        let language = handle.read_languages(TIMEOUT)?[0];
+
+        let device_desc = device.device_descriptor()?;
+        let serial = handle.read_serial_number_string(language, &device_desc, TIMEOUT)?;
+
+        handle.reset()?;
+
+        Ok(TargetHandle {
+            usb_device_handle: handle,
+            in_buffer_length,
+            out_buffer_length,
+            serial
+        })
     }
 }
 
