@@ -2,7 +2,7 @@
 name = "punt"
 description = "A library to connect to the punt STM32 USB bootloader"
 repository = "https://github.com/fruchti/punt-rs/"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["fruchti <fruchti@gvfr.de>"]
 license = "ISC"
 edition = "2018"
